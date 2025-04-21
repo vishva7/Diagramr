@@ -40,6 +40,7 @@ Diagramr is a web application that allows users to generate, refine, and manage 
 - Gradle
 - Internet connection (for Bootstrap CDN and AI services)
 - PostgreSQL
+- GraphViz (download from https://graphviz.org/download/)
 
 ## Installation
 
