@@ -46,7 +46,7 @@ Diagramr is a web application that allows users to generate, refine, and manage 
 Clone the repository:
 
 ```bash
-git clone https://github.com/VyoJ/Diagramr-dev.git
+git clone https://github.com/vishva7/Diagramr.git
 cd diagramr
 ```
 
@@ -61,6 +61,8 @@ Create a database called Diagramr in PostgreSQL (using psql):
 ```sql
 CREATE DATABASE diagramr;
 ```
+
+Add the postgres user's password to application.properties and your Groq API key.
 
 Run the application:
 
