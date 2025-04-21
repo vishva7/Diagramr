@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Error - Diagramr</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Diagramr</a>
+        <!-- Basic Navbar without user-specific links for error page -->
+      </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <h1 class="display-1" th:text="${status} ?: 'Error'">Error</h1>
+            <p class="lead" th:text="${error} ?: 'Something went wrong'">Something went wrong.</p>
+            <p th:text="${message} ?: 'Sorry, the page you are looking for could not be found or an unexpected error occurred.'">Details about the error.</p>
+            <a href="/" class="btn btn-primary mt-3">Go to Homepage</a>
+            <!-- Optionally display timestamp and path -->
+            <!--
+            <p class="mt-4 text-muted">
+                Timestamp: <span th:text="${timestamp}"></span><br/>
+                Path: <span th:text="${path}"></span>
+            </p>
+            -->
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-3 mt-auto">
+      <div class="container text-center">
+        <p>© 2025 Diagramr. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
