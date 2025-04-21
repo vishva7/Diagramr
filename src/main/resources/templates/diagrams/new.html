@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Create New Diagram - Diagramr</title>
+    <!-- CSRF Meta Tags -->
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <style>
+      .diagram-preview {
+        border: 1px solid #dee2e6;
+        padding: 15px;
+        border-radius: 5px;
+        min-height: 300px;
+      }
+      .code-area {
+        font-family: monospace;
+        min-height: 300px;
+      }
+      /* Add this rule */
+      #diagram-svg-container svg {
+        max-width: 100%;
+        height: auto; /* Maintain aspect ratio */
+        display: block; /* Optional: prevents potential extra space below */
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Diagramr</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="/diagrams">My Diagrams</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="/diagrams/new">New Diagram</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <form th:action="@{/logout}" method="post">
+                <button class="btn btn-link nav-link" type="submit">
+                  Logout
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <h1 class="mb-4">Create New Diagram</h1>
+
+      <div class="row">
+        <div class="col-md-6">
+          <form
+            id="diagramForm"
+            th:object="${diagramRequest}"
+            th:action="@{/diagrams/save}"
+            method="post"
+          >
+            <div class="mb-3">
+              <label for="title" class="form-label">Title</label>
+              <input
+                type="text"
+                class="form-control"
+                id="title"
+                th:field="*{title}"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="description" class="form-label">Description</label>
+              <textarea
+                class="form-control"
+                id="description"
+                th:field="*{description}"
+                rows="2"
+                required
+              ></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="prompt" class="form-label"
+                >Describe your diagram in natural language</label
+              >
+              <textarea
+                class="form-control"
+                id="prompt"
+                th:field="*{prompt}"
+                rows="5"
+                required
+                placeholder="Example: Create a class diagram for a library management system with books, authors, and users. Books can be borrowed by users and written by authors."
+              ></textarea>
+            </div>
+            <input type="hidden" id="plantUmlCode" name="plantUmlCode" />
+            <div class="d-grid gap-2">
+              <button type="button" id="generateButton" class="btn btn-primary">
+                Generate Diagram
+              </button>
+              <button
+                type="submit"
+                id="saveButton"
+                class="btn btn-success"
+                disabled
+              >
+                Save Diagram
+              </button>
+            </div>
+          </form>
+
+          <div id="feedbackForm" class="mt-4 d-none">
+            <div class="mb-3">
+              <label for="feedback" class="form-label"
+                >Refine your diagram with feedback</label
+              >
+              <textarea
+                class="form-control"
+                id="feedback"
+                rows="3"
+                placeholder="Example: Add getter and setter methods to the Book class and create a relationship between Author and Book"
+              ></textarea>
+            </div>
+            <button type="button" id="refineButton" class="btn btn-primary">
+              Refine Diagram
+            </button>
+          </div>
+          <!-- Add Download PNG button here, initially hidden -->
+          <button
+            type="button"
+            id="downloadPngButton"
+            class="btn btn-secondary mt-2 d-none"
+          >
+            Download PNG
+          </button>
+        </div>
+
+        <div class="col-md-6">
+          <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link active"
+                id="preview-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#preview"
+                type="button"
+                role="tab"
+              >
+                Preview
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="code-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#code"
+                type="button"
+                role="tab"
+              >
+                PlantUML Code
+              </button>
+            </li>
+          </ul>
+          <div class="tab-content" id="myTabContent">
+            <div
+              class="tab-pane fade show active p-3 diagram-preview"
+              id="preview"
+              role="tabpanel"
+            >
+              <div id="diagram-svg-container">
+                <p class="text-center text-muted">
+                  Your diagram preview will appear here
+                </p>
+              </div>
+            </div>
+            <div class="tab-pane fade p-3" id="code" role="tabpanel">
+              <pre id="plantUmlCodeDisplay" class="code-area">
+// Your PlantUML code will appear here</pre
+              >
+            </div>
+          </div>
+
+          <div id="errorContainer" class="alert alert-danger mt-3 d-none"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const generateButton = document.getElementById("generateButton");
+        const refineButton = document.getElementById("refineButton");
+        const saveButton = document.getElementById("saveButton");
+        const feedbackForm = document.getElementById("feedbackForm");
+        const downloadPngButton = document.getElementById("downloadPngButton"); // Get the new button
+        const diagramSvgContainer = document.getElementById(
+          "diagram-svg-container"
+        );
+        const plantUmlCodeDisplay = document.getElementById(
+          "plantUmlCodeDisplay"
+        );
+        const plantUmlCodeInput = document.getElementById("plantUmlCode");
+        const errorContainer = document.getElementById("errorContainer");
+
+        // Get CSRF token from meta tags
+        const csrfToken = document
+          .querySelector("meta[name='_csrf']")
+          .getAttribute("content");
+        const csrfHeader = document
+          .querySelector("meta[name='_csrf_header']")
+          .getAttribute("content");
+
+        generateButton.addEventListener("click", function () {
+          const title = document.getElementById("title").value;
+          const description = document.getElementById("description").value;
+          const prompt = document.getElementById("prompt").value;
+
+          if (!title || !description || !prompt) {
+            alert("Please fill in all fields");
+            return;
+          }
+
+          // Show loading state
+          generateButton.disabled = true;
+          generateButton.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+          diagramSvgContainer.innerHTML =
+            '<p class="text-center">Generating your diagram, please wait...</p>';
+          errorContainer.classList.add("d-none");
+
+          // Send request to generate diagram
+          fetch("/diagrams/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              [csrfHeader]: csrfToken, // Add CSRF header
+            },
+            body: JSON.stringify({
+              title: title,
+              description: description,
+              prompt: prompt,
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.valid) {
+                // Show the diagram
+                diagramSvgContainer.innerHTML = data.svgImage;
+
+                // Display the PlantUML code
+                plantUmlCodeDisplay.textContent = data.plantUmlCode;
+
+                // Set the hidden input for form submission
+                plantUmlCodeInput.value = data.plantUmlCode;
+
+                // Enable save button and show feedback form
+                saveButton.disabled = false;
+                feedbackForm.classList.remove("d-none");
+                downloadPngButton.classList.remove("d-none"); // Show download button
+              } else {
+                // Show error
+                errorContainer.textContent = data.errorMessage;
+                errorContainer.classList.remove("d-none");
+                downloadPngButton.classList.add("d-none"); // Hide download button on error
+              }
+            })
+            .catch((error) => {
+              errorContainer.textContent =
+                "Error generating diagram: " + error.message;
+              errorContainer.classList.remove("d-none");
+              downloadPngButton.classList.add("d-none"); // Hide download button on error
+            })
+            .finally(() => {
+              // Reset button state
+              generateButton.disabled = false;
+              generateButton.textContent = "Generate Diagram";
+            });
+        });
+
+        refineButton.addEventListener("click", function () {
+          const feedback = document.getElementById("feedback").value;
+
+          if (!feedback) {
+            alert("Please provide feedback for refinement");
+            return;
+          }
+
+          // Show loading state
+          refineButton.disabled = true;
+          refineButton.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refining...';
+          errorContainer.classList.add("d-none");
+
+          // Send request to refine diagram
+          fetch("/diagrams/refine", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              [csrfHeader]: csrfToken, // Add CSRF header
+            },
+            body: JSON.stringify({
+              existingCode: plantUmlCodeInput.value,
+              feedback: feedback,
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.valid) {
+                // Show the refined diagram
+                diagramSvgContainer.innerHTML = data.svgImage;
+
+                // Update the PlantUML code
+                plantUmlCodeDisplay.textContent = data.plantUmlCode;
+
+                // Update the hidden input for form submission
+                plantUmlCodeInput.value = data.plantUmlCode;
+                downloadPngButton.classList.remove("d-none"); // Show download button
+              } else {
+                // Show error
+                errorContainer.textContent = data.errorMessage;
+                errorContainer.classList.remove("d-none");
+              }
+            })
+            .catch((error) => {
+              errorContainer.textContent =
+                "Error refining diagram: " + error.message;
+              errorContainer.classList.remove("d-none");
+            })
+            .finally(() => {
+              // Reset button state
+              refineButton.disabled = false;
+              refineButton.textContent = "Refine Diagram";
+            });
+        });
+
+        // Add event listener for the download button
+        downloadPngButton.addEventListener("click", function () {
+          const code = plantUmlCodeInput.value;
+          const title = document.getElementById("title").value || "diagram"; // Use title or default
+          const filename =
+            encodeURIComponent(title.replace(/[^a-zA-Z0-9.-]/g, "_")) + ".png"; // Sanitize and encode filename for query param
+
+          if (!code) {
+            alert("No PlantUML code available to download.");
+            return;
+          }
+
+          // Add loading state to button
+          this.disabled = true;
+          this.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Downloading...';
+          errorContainer.classList.add("d-none"); // Hide previous errors
+
+          fetch(`/diagrams/render/png?filename=${filename}`, {
+            // Pass filename hint as query param
+            method: "POST",
+            headers: {
+              "Content-Type": "text/plain", // Backend expects plain text code
+              [csrfHeader]: csrfToken,
+            },
+            body: code,
+          })
+            .then((response) => {
+              if (!response.ok) {
+                // Try to get error message from response body if possible
+                return response.text().then((text) => {
+                  throw new Error(
+                    `Download failed: ${response.status} ${
+                      response.statusText
+                    }. Server message: ${text || "No details"}`
+                  );
+                });
+              }
+              return response.blob(); // Get the PNG data as a Blob
+            })
+            .then((blob) => {
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.style.display = "none";
+              a.href = url;
+              // Use the sanitized title for the download attribute
+              a.download = title.replace(/[^a-zA-Z0-9.-]/g, "_") + ".png";
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+            })
+            .catch((error) => {
+              console.error("Download error:", error);
+              errorContainer.textContent = `Error downloading PNG: ${error.message}`;
+              errorContainer.classList.remove("d-none");
+            })
+            .finally(() => {
+              // Reset button state
+              this.disabled = false;
+              this.innerHTML = "Download PNG";
+            });
+        });
+      });
+    </script>
+  </body>
+</html>

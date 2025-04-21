@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>My Diagrams - Diagramr</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Diagramr</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link active" href="/diagrams">My Diagrams</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/diagrams/new">New Diagram</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <form th:action="@{/logout}" method="post">
+                <button class="btn btn-link nav-link" type="submit">
+                  Logout
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Diagrams</h1>
+        <a href="/diagrams/new" class="btn btn-primary">Create New Diagram</a>
+      </div>
+
+      <div th:if="${diagrams.isEmpty()}" class="alert alert-info">
+        You haven't created any diagrams yet.
+      </div>
+
+      <div th:if="${!diagrams.isEmpty()}" class="list-group">
+        <a
+          th:each="diagram : ${diagrams}"
+          th:href="@{/diagrams/{id}(id=${diagram.id})}"
+          class="list-group-item list-group-item-action flex-column align-items-start"
+        >
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1" th:text="${diagram.title}">Diagram Title</h5>
+            <small th:text="${#temporals.format(diagram.updatedAt, 'yyyy-MM-dd HH:mm')}">Last updated</small>
+          </div>
+          <p class="mb-1" th:text="${diagram.description}">Diagram description.</p>
+        </a>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

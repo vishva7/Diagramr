@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title th:text="${diagram.title} + ' (v' + ${selectedVersion.versionNumber} + ') - Diagramr'">View Diagram Version</title>
+    <!-- CSRF Meta Tags -->
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <style>
+      .diagram-preview {
+        border: 1px solid #dee2e6;
+        padding: 15px;
+        border-radius: 5px;
+        min-height: 300px;
+        overflow: auto;
+      }
+      .code-area {
+        font-family: monospace;
+        min-height: 300px;
+        white-space: pre;
+        overflow: auto;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .version-badge {
+        font-size: 1rem;
+        padding: 0.25rem 0.5rem;
+      }
+      .version-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Diagramr</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="/diagrams">My Diagrams</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/diagrams/new">New Diagram</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <form th:action="@{/logout}" method="post">
+                <button class="btn btn-link nav-link" type="submit">
+                  Logout
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Viewing version history: </strong>
+          <span class="badge bg-secondary version-badge" th:text="'v' + ${selectedVersion.versionNumber}">v1</span>
+          <span th:text="${selectedVersion.versionLabel != null ? selectedVersion.versionLabel : ''}">Version Label</span>
+        </div>
+        <div>
+          <a th:href="@{/diagrams/{id}(id=${diagram.id})}" class="btn btn-sm btn-outline-primary">
+            Return to Current Version
+          </a>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 th:text="${diagram.title}">Diagram Title</h1>
+        <div class="btn-group">
+          <form 
+            th:action="@{/diagrams/{id}/switch-version(id=${diagram.id})}" 
+            method="post"
+          >
+            <input type="hidden" name="versionNumber" th:value="${selectedVersion.versionNumber}" />
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <button 
+              type="submit" 
+              class="btn btn-success"
+              title="Set this version as the current version"
+            >
+              Use This Version as Current
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <p class="lead" th:text="${diagram.description}">Diagram description.</p>
+      <div class="version-info mb-3">
+        <p class="mb-0">
+          <strong>Version created:</strong>
+          <span th:text="${#temporals.format(selectedVersion.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+        </p>
+        <p class="mb-0" th:if="${selectedVersion.versionNotes != null}">
+          <strong>Version notes:</strong>
+          <span th:text="${selectedVersion.versionNotes}">Notes</span>
+        </p>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-md-8">
+          <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link active"
+                id="preview-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#preview"
+                type="button"
+                role="tab"
+              >
+                Preview
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="code-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#code"
+                type="button"
+                role="tab"
+              >
+                PlantUML Code
+              </button>
+            </li>
+          </ul>
+          <div class="tab-content" id="myTabContent">
+            <div
+              class="tab-pane fade show active p-3 diagram-preview"
+              id="preview"
+              role="tabpanel"
+            >
+              <!-- Display rendering error if present -->
+              <div
+                th:if="${svgRenderingError}"
+                class="alert alert-warning"
+                role="alert"
+                th:text="${svgRenderingError}"
+              >
+                Rendering Error Message
+              </div>
+              <!-- SVG container -->
+              <div id="diagram-svg-container" th:utext="${svgImage}">
+                <!-- SVG will be injected here -->
+              </div>
+            </div>
+            <div class="tab-pane fade p-0" id="code" role="tabpanel">
+              <pre
+                id="plantUmlCodeDisplay"
+                class="code-area"
+                th:text="${selectedVersion.plantUmlCode}"
+              >
+// PlantUML code will appear here</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h4 class="card-title mb-0">Create Refinement from This Version</h4>
+            </div>
+            <div class="card-body">
+              <p>You can use this version as the base for a new refinement.</p>
+              <form id="refinementForm" th:object="${refinementRequest}">
+                <input type="hidden" id="existingCode" th:value="*{existingCode}" />
+                <div class="mb-3">
+                  <label for="feedback" class="form-label"
+                    >Provide feedback for refinement:</label>
+                  <textarea
+                    class="form-control"
+                    id="feedback"
+                    th:field="*{feedback}"
+                    rows="5"
+                    placeholder="Example: Add a new class. Change the relationship between entities."
+                    required
+                  ></textarea>
+                </div>
+                <button
+                  type="button"
+                  id="refineButton"
+                  class="btn btn-primary w-100"
+                >
+                  Refine from This Version
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h4 class="card-title mb-0">All Versions</h4>
+            </div>
+            <div class="card-body p-0">
+              <div class="list-group list-group-flush">
+                <a 
+                  th:each="version : ${versions}" 
+                  th:href="@{/diagrams/{id}/versions/{vnum}(id=${diagram.id}, vnum=${version.versionNumber})}"
+                  class="list-group-item list-group-item-action"
+                  th:classappend="${version.versionNumber == selectedVersion.versionNumber ? 'active' : ''}"
+                >
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-0">
+                        <span class="badge bg-secondary" th:text="'v' + ${version.versionNumber}">v1</span>
+                        <span th:text="${version.versionLabel != null ? version.versionLabel : 'Version ' + version.versionNumber}">Version Label</span>
+                      </h6>
+                      <small th:text="${#temporals.format(version.createdAt, 'yyyy-MM-dd HH:mm')}">Date</small>
+                    </div>
+                    <span 
+                      th:if="${version.versionNumber == diagram.currentVersionNumber}"
+                      class="badge bg-success"
+                    >
+                      Current
+                    </span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const refineButton = document.getElementById("refineButton");
+        const diagramSvgContainer = document.getElementById("diagram-svg-container");
+        const plantUmlCodeDisplay = document.getElementById("plantUmlCodeDisplay");
+        const existingCodeInput = document.getElementById("existingCode");
+
+        // Get CSRF token from meta tags
+        const csrfToken = document.querySelector("meta[name='_csrf']").getAttribute("content");
+        const csrfHeader = document.querySelector("meta[name='_csrf_header']").getAttribute("content");
+
+        refineButton.addEventListener("click", function () {
+          const feedback = document.getElementById("feedback").value;
+          const existingCode = existingCodeInput.value;
+
+          if (!feedback) {
+            alert("Please provide feedback for refinement");
+            return;
+          }
+          if (!existingCode) {
+            alert("Cannot refine: Existing code is missing.");
+            return;
+          }
+
+          // Show loading state
+          refineButton.disabled = true;
+          refineButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refining...';
+          diagramSvgContainer.innerHTML = '<p class="text-center">Refining diagram...</p>';
+
+          // Send request to refine diagram
+          fetch("/diagrams/refine", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              [csrfHeader]: csrfToken,
+            },
+            body: JSON.stringify({
+              existingCode: existingCode,
+              feedback: feedback,
+            }),
+          })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.valid) {
+              // Update the diagram preview
+              diagramSvgContainer.innerHTML = data.svgImage;
+
+              // Update the PlantUML code display
+              plantUmlCodeDisplay.textContent = data.plantUmlCode;
+
+              // Update the hidden input with the new code
+              existingCodeInput.value = data.plantUmlCode;
+
+              // Clear feedback field
+              document.getElementById("feedback").value = "";
+              
+              // Create a notification that the user can save this as a version
+              const alertDiv = document.createElement("div");
+              alertDiv.className = "alert alert-success mt-3";
+              alertDiv.innerHTML = `
+                <h5>Refinement successful!</h5>
+                <p>You can save this refined version by returning to the current diagram and using "Save as New Version".</p>
+                <a href="/diagrams/${new URLSearchParams(window.location.search).get('id')}" class="btn btn-sm btn-primary">
+                  Return to Current Diagram
+                </a>
+              `;
+              document.querySelector(".diagram-preview").appendChild(alertDiv);
+            } else {
+              // Show error
+              const alertDiv = document.createElement("div");
+              alertDiv.className = "alert alert-danger mt-3";
+              alertDiv.textContent = "Refinement failed: " + (data.errorMessage || "Unknown error");
+              document.querySelector(".diagram-preview").appendChild(alertDiv);
+              
+              diagramSvgContainer.innerHTML = '<p class="text-center text-danger">Refinement failed. See error message.</p>';
+            }
+          })
+          .catch((error) => {
+            console.error("Refinement fetch error:", error);
+            const alertDiv = document.createElement("div");
+            alertDiv.className = "alert alert-danger mt-3";
+            alertDiv.textContent = "Error refining diagram: " + error.message;
+            document.querySelector(".diagram-preview").appendChild(alertDiv);
+            
+            diagramSvgContainer.innerHTML = '<p class="text-center text-danger">Could not refine diagram. Check console.</p>';
+          })
+          .finally(() => {
+            // Reset button state
+            refineButton.disabled = false;
+            refineButton.textContent = "Refine from This Version";
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
