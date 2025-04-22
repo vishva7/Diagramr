@@ -21,9 +21,7 @@ public class DiagramRequest {
     @NotBlank(message = "Natural language prompt is required")
     private String prompt;
     
-    // For iterative refinement
     private String feedback;
     
-    // Optional existing PlantUML code for refinement
     private String existingCode;
 }

@@ -34,7 +34,6 @@ public class UserService implements UserDetailsService {
     }
 
     public User registerNewUser(User user) {
-        // Check if username or email already exists
         if (userRepository.existsByUsername(user.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
@@ -42,10 +41,8 @@ public class UserService implements UserDetailsService {
             throw new RuntimeException("Email already exists");
         }
 
-        // Encode password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        // Save user
         return userRepository.save(user);
     }
 

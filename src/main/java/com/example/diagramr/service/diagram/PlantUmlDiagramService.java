@@ -145,17 +145,14 @@ public class PlantUmlDiagramService implements DiagramService {
         diagram.setPlantUmlCode(plantUmlCode);
         diagram.setUser(user);
 
-        // Save the diagram first
         Diagram savedDiagram = diagramRepository.save(diagram);
 
-        // Create the first version and attach it to the diagram
         DiagramVersion version = new DiagramVersion();
         version.setPlantUmlCode(plantUmlCode);
         version.setVersionNumber(1);
         version.setVersionLabel("Initial version");
         version.setDiagram(savedDiagram);
 
-        // Add the version to the diagram's versions collection
         savedDiagram.addVersion(version);
 
         logger.info("Saving diagram titled '{}' for user {} with initial version", request.getTitle(),
@@ -166,19 +163,15 @@ public class PlantUmlDiagramService implements DiagramService {
     @Override
     @Transactional
     public DiagramVersion saveVersion(Diagram diagram, String plantUmlCode, String versionLabel, String versionNotes) {
-        // Create a new version
         DiagramVersion version = new DiagramVersion();
         version.setPlantUmlCode(plantUmlCode);
         version.setVersionLabel(versionLabel);
         version.setVersionNotes(versionNotes);
 
-        // Update the diagram with the latest version code
         diagram.setPlantUmlCode(plantUmlCode);
 
-        // Add the version to the diagram (this method sets the version number)
         diagram.addVersion(version);
 
-        // Save the diagram which will cascade save to the version
         diagramRepository.save(diagram);
 
         logger.info("Created new version {} for diagram id {} with label: {}",
@@ -233,7 +226,6 @@ public class PlantUmlDiagramService implements DiagramService {
 
         Diagram diagram = diagramOpt.get();
 
-        // Check if user has permission
         if (!diagram.getUser().getId().equals(user.getId())) {
             logger.warn("User {} attempted to switch version for diagram {} owned by user {}",
                     user.getUsername(), diagramId, diagram.getUser().getUsername());
@@ -249,7 +241,6 @@ public class PlantUmlDiagramService implements DiagramService {
 
         DiagramVersion version = versionOpt.get();
 
-        // Update the current diagram with the selected version's code
         diagram.setPlantUmlCode(version.getPlantUmlCode());
         diagram.setCurrentVersionNumber(versionNumber);
         diagramRepository.save(diagram);
@@ -271,23 +262,19 @@ public class PlantUmlDiagramService implements DiagramService {
         DiagramVersion version = versionOpt.get();
         Diagram diagram = version.getDiagram();
 
-        // Check if user has permission
         if (!diagram.getUser().getId().equals(user.getId())) {
             logger.warn("User {} attempted to delete version {} for diagram {} owned by user {}",
                     user.getUsername(), versionId, diagram.getId(), diagram.getUser().getUsername());
             return false;
         }
 
-        // Can't delete if it's the only version
         long versionCount = diagramVersionRepository.countByDiagram(diagram);
         if (versionCount <= 1) {
             logger.warn("Attempt to delete the only version for diagram id {}", diagram.getId());
             return false;
         }
 
-        // If deleting current version, set current to most recent other version
         if (diagram.getCurrentVersionNumber().equals(version.getVersionNumber())) {
-            // Find highest version number that is not the one being deleted
             Optional<DiagramVersion> newCurrentVersionOpt = diagramVersionRepository
                     .findFirstByDiagramAndIdNotOrderByVersionNumberDesc(
                             diagram, version.getId());
@@ -300,7 +287,6 @@ public class PlantUmlDiagramService implements DiagramService {
             }
         }
 
-        // Delete the version
         diagramVersionRepository.delete(version);
         logger.info("Deleted version {} for diagram id {}", version.getVersionNumber(), diagram.getId());
 
@@ -326,37 +312,29 @@ public class PlantUmlDiagramService implements DiagramService {
     }
 
     @Override
-    public String renderDiagramAsSvg(String plantUmlCode) throws PlantUmlRenderingException { // Add throws clause
-        // Basic check before attempting to render
+    public String renderDiagramAsSvg(String plantUmlCode) throws PlantUmlRenderingException {
         if (plantUmlCode == null || !plantUmlCode.trim().startsWith("@startuml")
                 || !plantUmlCode.trim().endsWith("@enduml")) {
             logger.error("Invalid PlantUML code passed to renderDiagramAsSvg (missing @startuml/@enduml):\n{}",
                     plantUmlCode);
-            // Keep IllegalArgumentException for fundamentally invalid structure
             throw new IllegalArgumentException(
                     "Invalid PlantUML code: Must start with @startuml and end with @enduml.");
         }
         logger.debug("Rendering PlantUML to SVG:\n{}", plantUmlCode);
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             SourceStringReader reader = new SourceStringReader(plantUmlCode);
-            // The generateImage method returns a description of the generated diagram.
-            // If there's a syntax error, it often returns "(Error)" or similar.
             String description = reader.generateImage(outputStream, new FileFormatOption(FileFormat.SVG));
             logger.info("PlantUML generateImage description: {}", description);
 
-            // Check if PlantUML reported an error during generation
             if (description == null || description.contains("Error")) {
                 logger.error("PlantUML reported an error during rendering: {}", description);
-                // Throw a specific exception for rendering/syntax errors
                 throw new PlantUmlRenderingException(
                         "PlantUML syntax error: " + (description != null ? description : "Unknown error"));
             }
 
             String svg = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).trim(); // Trim whitespace
-            // Check if the output starts with <svg or the XML declaration followed by <svg
             if (!(svg.startsWith("<svg") || (svg.startsWith("<?xml") && svg.contains("<svg")))) {
                 logger.error("PlantUML output did not seem to be valid SVG. Output:\n{}", svg);
-                // This might indicate a different kind of rendering failure
                 throw new PlantUmlRenderingException(
                         "Failed to render valid SVG content. PlantUML output might be incomplete or invalid.");
             }
@@ -364,14 +342,10 @@ public class PlantUmlDiagramService implements DiagramService {
             return svg;
         } catch (IOException e) {
             logger.error("IO error while rendering diagram as SVG", e);
-            // Wrap IOExceptions as well
             throw new PlantUmlRenderingException("IO error while rendering diagram as SVG", e);
         } catch (PlantUmlRenderingException e) {
-            // Re-throw the specific exception if caught within the try block
             throw e;
         } catch (Exception e) {
-            // Catch other potential exceptions from SourceStringReader or PlantUML
-            // internals
             logger.error("Unexpected error during PlantUML rendering", e);
             throw new PlantUmlRenderingException("Unexpected error rendering diagram as SVG: " + e.getMessage(), e);
         }
@@ -389,8 +363,7 @@ public class PlantUmlDiagramService implements DiagramService {
         logger.debug("Rendering PlantUML to PNG:\n{}", plantUmlCode);
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             SourceStringReader reader = new SourceStringReader(plantUmlCode);
-            String description = reader.generateImage(outputStream, new FileFormatOption(FileFormat.PNG)); // Use PNG
-                                                                                                           // format
+            String description = reader.generateImage(outputStream, new FileFormatOption(FileFormat.PNG));
             logger.info("PlantUML generateImage (PNG) description: {}", description);
 
             if (description == null || description.contains("Error")) {

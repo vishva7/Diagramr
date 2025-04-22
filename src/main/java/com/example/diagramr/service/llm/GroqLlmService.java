@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 public class GroqLlmService implements LlmService {
 
-    private static final Logger log = LoggerFactory.getLogger(GroqLlmService.class); // Added logger
+    private static final Logger log = LoggerFactory.getLogger(GroqLlmService.class);
 
     private final ChatModel chatModel;
     private final String SYSTEM_PROMPT_TEMPLATE = """
@@ -149,62 +149,50 @@ public class GroqLlmService implements LlmService {
 
     @Override
     public String generatePlantUml(String prompt) {
-        // Determine diagram type from prompt
         String diagramType = determineDiagramType(prompt);
-        log.info("Determined diagram type for generation: {}", diagramType); // Added logging
+        log.info("Determined diagram type for generation: {}", diagramType);
 
-        // Create system message with template
         Message systemMessage = getSystemMessage(diagramType);
 
-        // Create user message
         Message userMessage = new UserMessage(prompt);
-        log.info("User prompt for generation: {}", prompt); // Added logging
+        log.info("User prompt for generation: {}", prompt);
 
-        // Create prompt with both messages
         Prompt aiPrompt = new Prompt(List.of(systemMessage, userMessage));
 
-        // Get response content directly instead of toString()
-        String response = chatModel.call(aiPrompt).getResult().getOutput().getText(); // Changed this line
-        log.info("LLM response for generation:\n{}", response); // Added logging
+        String response = chatModel.call(aiPrompt).getResult().getOutput().getText();
+        log.info("LLM response for generation:\n{}", response);
         return response;
     }
 
     @Override
     public String refinePlantUml(String existingCode, String feedback) {
-        // Determine diagram type from existing code
         String diagramType = determineDiagramTypeFromCode(existingCode);
-        log.info("Determined diagram type for refinement: {}", diagramType); // Added logging
+        log.info("Determined diagram type for refinement: {}", diagramType);
 
-        // Create system message
         Message systemMessage = getSystemMessage(diagramType);
 
-        // Create user message with existing code and feedback
         String userPrompt = String.format(
                 "Refine this PlantUML diagram based on the following feedback:\n\nFeedback: %s\n\nExisting code:\n```\n%s\n```",
                 feedback,
                 existingCode);
-        log.info("User prompt for refinement: {}", userPrompt); // Added logging
+        log.info("User prompt for refinement: {}", userPrompt);
 
         Message userMessage = new UserMessage(userPrompt);
 
-        // Create prompt with both messages
         Prompt aiPrompt = new Prompt(List.of(systemMessage, userMessage));
 
-        // Get response content directly instead of toString()
-        String response = chatModel.call(aiPrompt).getResult().getOutput().getText(); // Changed this line
-        log.info("LLM response for refinement:\n{}", response); // Added logging
+        String response = chatModel.call(aiPrompt).getResult().getOutput().getText();
+        log.info("LLM response for refinement:\n{}", response);
         return response;
     }
 
     private Message getSystemMessage(String diagramType) {
         String systemPrompt = String.format(SYSTEM_PROMPT_TEMPLATE, diagramType);
-        log.info("System prompt: {}", systemPrompt); // Added logging
+        log.info("System prompt: {}", systemPrompt);
         return new SystemMessage(systemPrompt);
     }
 
-    // Rest of your existing methods for diagram type determination
     private String determineDiagramType(String prompt) {
-        // Simple heuristic to determine diagram type from prompt
         prompt = prompt.toLowerCase();
 
         if (prompt.contains("class") || prompt.contains("inheritance") || prompt.contains("attributes")

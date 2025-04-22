@@ -4,26 +4,26 @@ import com.example.diagramr.model.Diagram;
 import com.example.diagramr.model.DiagramRequest;
 import com.example.diagramr.model.DiagramResponse;
 import com.example.diagramr.model.User;
-import com.example.diagramr.model.DiagramVersion; // Add this import
+import com.example.diagramr.model.DiagramVersion;
 import com.example.diagramr.service.diagram.DiagramService;
 import com.example.diagramr.service.user.UserService;
-import com.example.diagramr.exception.PlantUmlRenderingException; // Add this import
+import com.example.diagramr.exception.PlantUmlRenderingException;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger; // Import Logger
-import org.slf4j.LoggerFactory; // Import LoggerFactory
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpHeaders; // Add this import
-import org.springframework.http.MediaType; // Add this import
-import org.springframework.http.HttpStatus; // Add this import
-import org.springframework.web.bind.annotation.RequestBody; // Add this import
-import org.springframework.web.bind.annotation.RequestParam; // Add this import
-import org.springframework.web.servlet.mvc.support.RedirectAttributes; // Add this import
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +33,7 @@ public class DiagramController {
 
     private final DiagramService diagramService;
     private final UserService userService;
-    private static final Logger logger = LoggerFactory.getLogger(DiagramController.class); // Add logger instance
+    private static final Logger logger = LoggerFactory.getLogger(DiagramController.class);
 
     public DiagramController(DiagramService diagramService, UserService userService) {
         this.diagramService = diagramService;
@@ -60,30 +60,25 @@ public class DiagramController {
     public String registerUser(@Valid @ModelAttribute("user") User user, BindingResult result, Model model) { // Added
         if (result.hasErrors()) {
             logger.warn("Validation errors during registration for user: {}", user.getUsername());
-            // User object is automatically added back to model by @ModelAttribute
-            return "register"; // Stay on registration page to show validation errors
+            return "register";
         }
 
         try {
             logger.info("Attempting registration for user: {}", user.getUsername());
             userService.registerNewUser(user);
             logger.info("Registration successful for user: {}", user.getUsername());
-            return "redirect:/login?registered"; // Redirect on success
-        } catch (RuntimeException e) { // Catch specific RuntimeException from UserService
+            return "redirect:/login?registered";
+        } catch (RuntimeException e) {
             logger.error("Registration failed for user: {}: {}", user.getUsername(), e.getMessage());
-            // Check the specific error message from UserService
             if (e.getMessage() != null && e.getMessage().contains("Username already exists")) {
                 result.rejectValue("username", "error.user", e.getMessage());
             } else if (e.getMessage() != null && e.getMessage().contains("Email already exists")) {
                 result.rejectValue("email", "error.user", e.getMessage());
             } else {
-                // Add a generic global error for other runtime exceptions
                 result.reject("error.user", "An unexpected error occurred during registration. Please try again.");
-                logger.error("Unexpected error during registration", e); // Log the full stack trace for unexpected
-                                                                         // errors
+                logger.error("Unexpected error during registration", e);
             }
-            // User object is automatically added back to model by @ModelAttribute
-            return "register"; // Stay on registration page to show the specific error
+            return "register";
         }
     }
 
@@ -137,34 +132,30 @@ public class DiagramController {
         User user = userService.getUserByUsername(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Optional<Diagram> diagramOpt = diagramService.getDiagramById(id); // Renamed to avoid conflict
+        Optional<Diagram> diagramOpt = diagramService.getDiagramById(id);
 
         if (diagramOpt.isEmpty() || !diagramOpt.get().getUser().getId().equals(user.getId())) {
             logger.warn("Attempt to access diagram id {} by unauthorized user {}", id, user.getUsername());
             return "redirect:/diagrams";
         }
 
-        Diagram diagram = diagramOpt.get(); // Get the diagram object
+        Diagram diagram = diagramOpt.get();
         model.addAttribute("diagram", diagram);
 
         // Get diagram versions
         List<DiagramVersion> versions = diagramService.getDiagramVersions(id);
         model.addAttribute("versions", versions);
 
-        String svgImage = null; // Initialize svgImage
-        String svgRenderingError = null; // Initialize error message
+        String svgImage = null;
+        String svgRenderingError = null;
 
         try {
             svgImage = diagramService.renderDiagramAsSvg(diagram.getPlantUmlCode());
         } catch (PlantUmlRenderingException e) {
             logger.error("Failed to render SVG for diagram id {}: {}", id, e.getMessage());
-            // Provide a user-friendly error message for the view
             svgRenderingError = "Could not render diagram preview: " + e.getMessage();
-            // Optionally, provide a placeholder or specific error SVG
             svgImage = "<svg width='100%' height='100'><text x='10' y='50' fill='red'>Error rendering diagram.</text></svg>";
         } catch (IllegalArgumentException e) {
-            // Catch the IllegalArgumentException specifically if needed (e.g., missing
-            // @startuml)
             logger.error("Invalid PlantUML code structure for diagram id {}: {}", id, e.getMessage());
             svgRenderingError = "Invalid PlantUML code structure: " + e.getMessage();
             svgImage = "<svg width='100%' height='100'><text x='10' y='50' fill='red'>Invalid code structure.</text></svg>";
@@ -172,10 +163,9 @@ public class DiagramController {
 
         model.addAttribute("svgImage", svgImage);
         if (svgRenderingError != null) {
-            model.addAttribute("svgRenderingError", svgRenderingError); // Add error message to model
+            model.addAttribute("svgRenderingError", svgRenderingError);
         }
 
-        // For refinement
         DiagramRequest refinementRequest = new DiagramRequest();
         refinementRequest.setTitle(diagram.getTitle());
         refinementRequest.setDescription(diagram.getDescription());
@@ -205,7 +195,6 @@ public class DiagramController {
 
         Diagram diagram = diagramOpt.get();
 
-        // Save the new version
         diagramService.saveVersion(diagram, plantUmlCode, versionLabel, versionNotes);
 
         return "redirect:/diagrams/" + id;
@@ -268,7 +257,6 @@ public class DiagramController {
         String svgRenderingError = null;
 
         try {
-            // Render the specific version's code
             svgImage = diagramService.renderDiagramAsSvg(version.getPlantUmlCode());
         } catch (PlantUmlRenderingException e) {
             logger.error("Failed to render SVG for diagram id {} version {}: {}", id, versionNumber, e.getMessage());
@@ -286,14 +274,12 @@ public class DiagramController {
             model.addAttribute("svgRenderingError", svgRenderingError);
         }
 
-        // For refinement based on this version
         DiagramRequest refinementRequest = new DiagramRequest();
         refinementRequest.setTitle(diagram.getTitle());
         refinementRequest.setDescription(diagram.getDescription());
         refinementRequest.setExistingCode(version.getPlantUmlCode());
         model.addAttribute("refinementRequest", refinementRequest);
 
-        // Use the dedicated version template
         return "diagrams/version";
     }
 
@@ -306,7 +292,6 @@ public class DiagramController {
 
         if (diagramOpt.isEmpty() || !diagramOpt.get().getUser().getId().equals(user.getId())) {
             logger.warn("Attempt to download diagram id {} by unauthorized user {}", id, user.getUsername());
-            // Return forbidden or redirect, returning empty body for simplicity here
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
         }
 
@@ -316,17 +301,13 @@ public class DiagramController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_PNG);
-            // Sanitize title for filename
             String filename = diagram.getTitle().replaceAll("[^a-zA-Z0-9.-]", "_") + ".png";
-            headers.setContentDispositionFormData("attachment", filename); // Suggest filename
+            headers.setContentDispositionFormData("attachment", filename);
 
             return new ResponseEntity<>(pngData, headers, HttpStatus.OK);
 
         } catch (PlantUmlRenderingException | IllegalArgumentException e) {
             logger.error("Failed to render PNG for download for diagram id {}: {}", id, e.getMessage());
-            // Return an error response, perhaps a simple text error or redirect to view
-            // with error
-            // For API-like behavior, returning an error status might be suitable.
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
             return new ResponseEntity<>(("Error rendering diagram: " + e.getMessage()).getBytes(), headers,
@@ -343,7 +324,6 @@ public class DiagramController {
     @PostMapping("/diagrams/render/png")
     public ResponseEntity<byte[]> renderDiagramAsPngFromCode(@RequestBody String plantUmlCode,
             @RequestParam(required = false, defaultValue = "diagram") String filename) {
-        // Basic validation - could enhance
         if (plantUmlCode == null || plantUmlCode.trim().isEmpty()) {
             return ResponseEntity.badRequest().body("PlantUML code cannot be empty.".getBytes());
         }
@@ -354,7 +334,6 @@ public class DiagramController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_PNG);
-            // Sanitize provided filename hint
             String sanitizedFilename = filename.replaceAll("[^a-zA-Z0-9.-]", "_") + ".png";
             headers.setContentDispositionFormData("attachment", sanitizedFilename);
 
@@ -364,9 +343,8 @@ public class DiagramController {
             logger.error("Failed to render PNG from provided code: {}", e.getMessage());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
-            // Return error message in body for client-side handling
             return new ResponseEntity<>(("Error rendering diagram: " + e.getMessage()).getBytes(), headers,
-                    HttpStatus.BAD_REQUEST); // Use 400 for rendering errors
+                    HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             logger.error("Unexpected error during PNG rendering from code: {}", e.getMessage(), e);
             HttpHeaders headers = new HttpHeaders();
